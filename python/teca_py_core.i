@@ -122,9 +122,11 @@
 %shared_ptr(teca_variant_array_impl<float>)
 %shared_ptr(teca_variant_array_impl<char>)
 %shared_ptr(teca_variant_array_impl<int>)
+%shared_ptr(teca_variant_array_impl<long>)
 %shared_ptr(teca_variant_array_impl<long long>)
 %shared_ptr(teca_variant_array_impl<unsigned char>)
 %shared_ptr(teca_variant_array_impl<unsigned int>)
+%shared_ptr(teca_variant_array_impl<unsigned long>)
 %shared_ptr(teca_variant_array_impl<unsigned long long>)
 %shared_ptr(teca_variant_array_impl<std::string>)
 class teca_variant_array;
@@ -142,11 +144,13 @@ class teca_variant_array;
 %include "teca_variant_array.h"
 %template(teca_double_array) teca_variant_array_impl<double>;
 %template(teca_float_array) teca_variant_array_impl<float>;
-%template(teca_int_array) teca_variant_array_impl<char>;
-%template(teca_char_array) teca_variant_array_impl<int>;
+%template(teca_char_array) teca_variant_array_impl<char>;
+%template(teca_int_array) teca_variant_array_impl<int>;
+%template(teca_long_array) teca_variant_array_impl<long>;
 %template(teca_long_long_array) teca_variant_array_impl<long long>;
-%template(teca_unsigned_int_array) teca_variant_array_impl<unsigned char>;
-%template(teca_unsigned_char_array) teca_variant_array_impl<unsigned int>;
+%template(teca_unsigned_char_array) teca_variant_array_impl<unsigned char>;
+%template(teca_unsigned_int_array) teca_variant_array_impl<unsigned int>;
+%template(teca_unsigned_long_array) teca_variant_array_impl<unsigned long>;
 %template(teca_unsigned_long_long_array) teca_variant_array_impl<unsigned long long>;
 %extend teca_variant_array
 {
@@ -281,9 +285,11 @@ TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(double, double)
 TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(float, float)
 TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(char, char)
 TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(int, int)
+TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(long, long)
 TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(long long, long_long)
 TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(unsigned char, unsigned_char)
 TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(unsigned int, unsigned_int)
+TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(unsigned long, unsigned_long)
 TECA_PY_DYNAMIC_VARIANT_ARRAY_CAST(unsigned long long, unsigned_long_long)
 
 /***************************************************************************
