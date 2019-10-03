@@ -29,6 +29,8 @@ set(teca_alg_cxx_srcs
     teca_latitude_damper.cxx
     teca_laplacian.cxx
     teca_mask.cxx
+    teca_mesh_padding.cxx
+    teca_mesh_layering.cxx
     teca_normalize_coordinates.cxx
     teca_parser.cxx
     teca_programmable_algorithm.cxx
@@ -50,6 +52,7 @@ set(teca_alg_cxx_srcs
     )
 
 teca_py_install(${LIB_PREFIX}
+    teca_model_segmentation.py
     teca_tc_stats.py
     teca_tc_activity.py
     teca_python_algorithm.py

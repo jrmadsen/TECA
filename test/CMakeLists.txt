@@ -43,6 +43,11 @@ teca_add_test(test_stack_trace_signal_handler
     LIBS ${teca_test_link}
     COMMAND test_stack_trace_signal_handler 8 0)
 
+teca_add_test(test_mesh_pad_layer
+    SOURCES test_mesh_pad_layer.cpp
+    LIBS teca_core teca_data teca_io teca_alg ${teca_test_link}
+    COMMAND test_mesh_pad_layer 4 3 3 2 1 2 "test_mesh_pad_layer_%t%.bin")
+
 teca_add_test(test_mpi_error_handler
     SOURCES test_mpi_error_handler.cpp
     LIBS ${teca_test_link}
