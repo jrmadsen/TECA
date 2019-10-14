@@ -48,14 +48,15 @@ teca_metadata teca_table_reduce::initialize_output_metadata(
 }
 
 // --------------------------------------------------------------------------
-p_teca_dataset teca_table_reduce::reduce(
-    const const_p_teca_dataset &left_ds,
-    const const_p_teca_dataset &right_ds)
+p_teca_dataset teca_table_reduce::reduce(const const_p_teca_dataset &left_ds,
+    const const_p_teca_dataset &right_ds, int streaming)
 {
 #ifdef TECA_DEBUG
     cerr << teca_parallel_id()
         << "teca_table_reduce::reduce" << endl;
 #endif
+    (void)streaming;
+
     const_p_teca_table left_table
         = std::dynamic_pointer_cast<const teca_table>(left_ds);
 

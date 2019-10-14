@@ -62,7 +62,7 @@ def get_execute_callback(rank, var_names):
     return execute
 
 def get_reduce_callback(rank):
-    def reduce(data_in_0, data_in_1):
+    def reduce(data_in_0, data_in_1, streaming):
         sys.stderr.write('[%d] reduce\n'%(rank))
 
         table_0 = as_teca_table(data_in_0)

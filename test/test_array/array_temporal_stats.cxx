@@ -106,9 +106,8 @@ teca_metadata array_temporal_stats::initialize_output_metadata(
 }
 
 // --------------------------------------------------------------------------
-p_teca_dataset array_temporal_stats::reduce(
-    const const_p_teca_dataset &left,
-    const const_p_teca_dataset &right)
+p_teca_dataset array_temporal_stats::reduce(const const_p_teca_dataset &left,
+    const const_p_teca_dataset &right, int streaming)
 {
 #ifndef TECA_NDEBUG
     cerr << teca_parallel_id()

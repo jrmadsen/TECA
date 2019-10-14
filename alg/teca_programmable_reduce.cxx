@@ -71,7 +71,8 @@ teca_metadata teca_programmable_reduce::initialize_output_metadata(
 
 // --------------------------------------------------------------------------
 p_teca_dataset teca_programmable_reduce::reduce(
-    const const_p_teca_dataset &left_ds, const const_p_teca_dataset &right_ds)
+    const const_p_teca_dataset &left_ds, const const_p_teca_dataset &right_ds,
+    int streaming)
 {
 #ifdef TECA_DEBUG
     cerr << teca_parallel_id()
@@ -84,5 +85,5 @@ p_teca_dataset teca_programmable_reduce::reduce(
         return nullptr;
     }
 
-    return this->reduce_callback(left_ds, right_ds);
+    return this->reduce_callback(left_ds, right_ds, streaming);
 }

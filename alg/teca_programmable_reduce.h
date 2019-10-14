@@ -67,7 +67,7 @@ protected:
 
     // overrides
     p_teca_dataset reduce(const const_p_teca_dataset &left,
-        const const_p_teca_dataset &right) override;
+        const const_p_teca_dataset &right, int streaming) override;
 
     std::vector<teca_metadata> initialize_upstream_request(
         unsigned int port, const std::vector<teca_metadata> &input_md,

@@ -31,6 +31,7 @@
 #include <boost/program_options.hpp>
 #endif
 
+namespace {
 
 // This routine appends the contents of dataset_0.get_metadata.get(property_name)
 // onto that from dataset_0 and overwrites the contents `property_name' in the
@@ -44,7 +45,7 @@
 //   dataset_1     : (p_teca_dataset) the RHS dataset in the reduction
 //
 //   mesh_out      : (p_teca_cartesian_mesh) the output of the reduction
-void property_reduce(std::string property_name,
+/*void property_reduce(std::string property_name,
     p_teca_dataset dataset_0, p_teca_dataset dataset_1,
     p_teca_cartesian_mesh mesh_out)
 {
@@ -63,12 +64,7 @@ void property_reduce(std::string property_name,
 
     // Overwrite the concatenated property vector in the output dataset
     mesh_out->get_metadata().set(property_name, property_vector);
-}
-
-
-
-
-namespace {
+}*/
 
 // drive the pipeline execution once for each parameter table row
 // injects the parameter values into the upstream requests
@@ -200,8 +196,10 @@ public:
     // array is computed from the filtered connected components. after the
     // reduction runs, the result will need to be normalized.
     p_teca_dataset operator()(const const_p_teca_dataset &left,
-        const const_p_teca_dataset &right)
+        const const_p_teca_dataset &right, int streaming)
     {
+        (void)streaming;
+
         // the inputs will not be modified. we are going to make shallow
         // copy, and add an array
         p_teca_dataset dataset_0 = std::const_pointer_cast<teca_dataset>(left);

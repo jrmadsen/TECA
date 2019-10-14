@@ -310,7 +310,7 @@ public:
     { return static_cast<bool>(m_callback); }
 
     p_teca_dataset operator()(const const_p_teca_dataset &input_0,
-        const const_p_teca_dataset &input_1)
+        const const_p_teca_dataset &input_1, int streaming)
     {
         teca_py_gil_state gil;
 
@@ -333,8 +333,11 @@ public:
                 SWIGTYPE_p_std__shared_ptrT_teca_dataset_t,
                 SWIG_POINTER_OWN);
 
+        PyObject *py_streaming = CIntToPyInteger(streaming);
+
         // call the callback
-        PyObject *args = Py_BuildValue("NN", py_input_0, py_input_1);
+        PyObject *args =
+            Py_BuildValue("NNN", py_input_0, py_input_1, py_streaming);
 
         PyObject *ret = nullptr;
         if (!(ret = PyObject_CallObject(f, args)) || PyErr_Occurred())

@@ -119,7 +119,9 @@ void block_decompose(MPI_Comm comm, unsigned long n_indices, unsigned long n_ran
 // --------------------------------------------------------------------------
 teca_index_reduce::teca_index_reduce()
     : start_index(0), end_index(-1)
-{}
+{
+    this->set_stream_size(2);
+}
 
 #if defined(TECA_HAS_BOOST)
 // --------------------------------------------------------------------------
@@ -262,7 +264,8 @@ teca_metadata teca_index_reduce::get_output_metadata(
 
 // --------------------------------------------------------------------------
 const_p_teca_dataset teca_index_reduce::reduce_local(
-    std::vector<const_p_teca_dataset> input_data) // pass by value is intentional
+    std::vector<const_p_teca_dataset> input_data, // pass by value is intentional
+    int streaming)
 {
     unsigned long n_in = input_data.size();
 
@@ -276,7 +279,8 @@ const_p_teca_dataset teca_index_reduce::reduce_local(
     {
         if (n_in % 2)
             TECA_PROFILE_METHOD(128, this, "reduce",
-                input_data[0] = this->reduce(input_data[0], input_data[n_in-1]);
+                input_data[0] =
+                    this->reduce(input_data[0], input_data[n_in-1], streaming);
                 )
 
         unsigned long n = n_in/2;
@@ -284,7 +288,8 @@ const_p_teca_dataset teca_index_reduce::reduce_local(
         {
             unsigned long ii = 2*i;
             TECA_PROFILE_METHOD(128, this, "reduce",
-                input_data[i] = this->reduce(input_data[ii], input_data[ii+1]);
+                input_data[i] =
+                    this->reduce(input_data[ii], input_data[ii+1], streaming);
                 )
         }
 
@@ -341,7 +346,7 @@ const_p_teca_dataset teca_index_reduce::reduce_remote(
             }
 
             TECA_PROFILE_METHOD(128, this, "reduce",
-                local_data = this->reduce(local_data, left_data);
+                local_data = this->reduce(local_data, left_data, 0);
                 )
 
             bstr.resize(0);
@@ -364,7 +369,7 @@ const_p_teca_dataset teca_index_reduce::reduce_remote(
             }
 
             TECA_PROFILE_METHOD(128, this, "reduce",
-                local_data = this->reduce(local_data, right_data);
+                local_data = this->reduce(local_data, right_data, 0);
                 )
 
             bstr.resize(0);
@@ -389,10 +394,9 @@ const_p_teca_dataset teca_index_reduce::reduce_remote(
 }
 
 // --------------------------------------------------------------------------
-const_p_teca_dataset teca_index_reduce::execute(
-    unsigned int port,
+const_p_teca_dataset teca_index_reduce::execute(unsigned int port,
     const std::vector<const_p_teca_dataset> &input_data,
-    const teca_metadata &request)
+    const teca_metadata &request, int streaming)
 {
     (void)port;
     (void)request;
@@ -401,8 +405,10 @@ const_p_teca_dataset teca_index_reduce::execute(
     // this can occur if there are fewer indices
     // to process than there are MPI ranks.
 
-    const_p_teca_dataset tmp =
-        this->reduce_remote(this->reduce_local(input_data));
+    const_p_teca_dataset tmp = this->reduce_local(input_data, streaming);
+
+    if (!streaming)
+        tmp = this->reduce_remote(tmp);
 
     if (!tmp)
         return nullptr;

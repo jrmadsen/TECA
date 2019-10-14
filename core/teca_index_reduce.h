@@ -58,7 +58,7 @@ protected:
     // override that implements the reduction. given two datasets
     // a left and right, reduce into a single dataset and return.
     virtual p_teca_dataset reduce(const const_p_teca_dataset &left,
-        const const_p_teca_dataset &right) = 0;
+        const const_p_teca_dataset &right, int streaming) = 0;
 
     // override that allows derived classes to generate upstream
     // requests that will be applied over all time steps. derived
@@ -94,7 +94,7 @@ protected:
     // dataset, which is returned.
     const_p_teca_dataset execute(unsigned int port,
         const std::vector<const_p_teca_dataset> &input_data,
-        const teca_metadata &request) override;
+        const teca_metadata &request, int streaming) override;
 
     // consumes time metadata, partitions time's across
     // MPI ranks.
@@ -105,7 +105,8 @@ private:
     // drivers for reducing the local and remote datasets.
     // calls reduce override as needed.
     const_p_teca_dataset reduce_local(
-        std::vector<const_p_teca_dataset> local_data);
+        std::vector<const_p_teca_dataset> local_data,
+        int streaming);
 
     const_p_teca_dataset reduce_remote(const_p_teca_dataset local_data);
 
