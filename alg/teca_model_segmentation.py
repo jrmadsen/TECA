@@ -1,7 +1,30 @@
 import teca_py
 import numpy as np
+from mpi4py import MPI
 import torch
 import torch.nn.functional as F
+
+def teca_get_data_root():
+    """
+    Return TECA_DATA_ROOT location
+    """
+    return @TECA_DATA_ROOT@
+
+def teca_load_state_dict(state_dict_file, model_class, *args):
+    """
+    Load only the pytorch state_dict parameters file only
+    once and broadcast it to all ranks
+    """ 
+    if rank == 0:
+        model = model_class(*args)
+        model.load_state_dict(state_dict_file)
+    else:
+        model = None
+    model = comm.bcast(model, root=0)
+
+    return model
+
+
 
 class teca_model_segmentation(teca_py.teca_python_algorithm):
     """

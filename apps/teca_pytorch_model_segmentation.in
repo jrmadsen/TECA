@@ -1,0 +1,214 @@
+#!/usr/bin/env python@TECA_PYTHON_VERSION@
+from teca import *
+import sys
+import argparse
+import numpy as np
+from mpi4py import MPI
+
+from DeepLabv3_plus import DeepLabv3_plus
+
+
+def get_padding_params(lat, lon):
+    target_shape = 128 * np.ceil(image.shape[1]/128.0)
+    target_shape_diff = target_shape - image.shape[1]
+    padding_amount_lat = (int(np.ceil(target_shape_diff / 2.0)), int(np.floor(target_shape_diff / 2.0)))
+
+    target_shape = 64 * np.ceil(image.shape[2]/64.0)
+    target_shape_diff = target_shape - image.shape[2]
+    padding_amount_lon = (int(np.ceil(target_shape_diff / 2.0)), int(np.floor(target_shape_diff / 2.0)))
+
+    return padding_amount_lat, padding_amount_lon
+
+def load_model(model_file):
+    state_dict = torch.load(model_file, map_location=lambda storage, loc: storage)
+
+    from collections import OrderedDict
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        if "resnet_features" not in k:
+            k = k.replace('features.', 'resnet_features.')
+        new_state_dict[k]=v
+    # load params
+
+    model = DeepLabv3_plus(n_classes=1, pretrained=True)
+    model.load_state_dict(new_state_dict)
+
+
+def main():
+    # parse the command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input_file', type=str, required=False,
+        help='file path to the simulation to search for atmospheric rivers')
+
+    parser.add_argument('--output_file', type=str, required=False,
+        default='pytorch_model_segmentation_%t%.nc',
+        help='file pattern for output netcdf files (%t% is the time index)')
+
+    parser.add_argument('--input_regex', type=str, required=False,
+        help='regex matching simulation files to search for atmospheric rivers')
+
+    parser.add_argument('--ivt', type=str, default='IVT',
+        help='name of variable with integrated vapor transport (IVT)')
+
+    MODEL_PATH="pre_trained_deeplab_resnet_IVT_artmip_probabilistic_adam_epoch_001_loss_perceptual_loss_160987.8365_time_corr_split_state_dict.pt"
+    parser.add_argument('--pytorch_model', type=str, default=MODEL_PATH,
+        help='name of pretrained pytorch_file')
+
+    parser.add_argument('--first_step', type=long, required=False,
+        help='first time step to process')
+
+    parser.add_argument('--last_step', type=long, required=False,
+        help='last time step to process')
+
+    parser.add_argument('--steps_per_file', type=long, required=False,
+        help='number of time steps per output filr')
+
+    parser.add_argument('--start_date', type=str, required=False,
+        help='first time to proces in YYYY-MM-DD hh:mm:ss format')
+
+    parser.add_argument('--end_date', type=str, required=False,
+        help='end time to proces in YYYY-MM-DD hh:mm:ss format')
+
+    args = parser.parse_args()
+
+
+    cf_reader = teca_cf_reader.New()
+
+    mesh_padder = teca_mesh_padding.New()
+    mesh_padder.set_input_connection(cf_reader.get_output_port())
+
+    mesh_layerer = teca_mesh_layering.New()
+    mesh_layerer.set_input_connection(mesh_padder.get_output_port())
+
+    model_segmentor = teca_model_segmentation.New()
+    model_segmentor.set_input_connection(mesh_layerer.get_output_port())
+
+    alg = teca_programmable_algorithm.New()
+    alg.set_input_connection(mesh_layerer.get_output_port())
+
+    teca_exec = teca_index_executive.New()
+
+    cf_writer = teca_cf_writer.New()
+    cf_writer.set_input_connection(model_out.get_output_port())
+
+    if args.input_file:
+        cf_reader.append_file_name(
+            args.input_file)
+
+    if args.input_regex:
+        cf_reader.set_files_regex(
+            args.input_regex)
+
+    if args.output_file:
+        cf_writer.set_file_name(
+            args.output_file)
+
+    if args.ivt:
+        model_segmentor.set_variable_name(
+            args.ivt)
+
+    if args.pytorch_model:
+        comm = MPI.COMM_WORLD
+        rank = comm.Get_rank()
+
+        if rank == 0:
+            model = load_model(args.pytorch_model)
+        else:
+            model = None
+        model = comm.bcast(model, root=0)
+
+        model_segmentor.set_model(model)
+
+
+    if args.steps_per_file:
+        cf_writer.set_steps_per_file(
+            args.steps_per_file)
+
+    if args.first_step:
+        cf_writer.set_first_step(
+            args.first_step)
+
+    if args.last_step:
+        cf_writer.set_last_step(
+            args.last_step)
+
+
+    # some minimal check for missing options
+    if cf_reader.get_number_of_file_names() == 0
+        and not cf_reader.get_files_regex():
+        raise ValueError(
+                "missing file name or regex for simulation reader. "
+                "See --help for a list of command line options.")
+    
+
+    if not cf_writer.get_file_name():
+        raise ValueError(
+                "missing file name pattern for netcdf writer. "
+                "See --help for a list of command line options.")
+    
+    if args.start_date or args.end_date:
+
+    # build and configure the pipeline
+    tr = teca_table_reader.New()
+    tr.set_file_name(args.in_file)
+
+    # tip of the pipeline is held in a temp
+    ptip = tr
+    expr = ''
+
+    if (args.time_column):
+        ee = teca_evaluate_expression.New()
+        ee.set_input_connection(ptip.get_output_port())
+        ee.set_expression('(%s >= %g) && (%s <= %g)'%( \
+            args.time_column, args.start_time, \
+            args.time_column, args.end_time))
+        ee.set_result_variable('in_time')
+        ptip = ee
+        expr = 'in_time'
+
+    if (args.step_column):
+        ee = teca_evaluate_expression.New()
+        ee.set_input_connection(ptip.get_output_port())
+        ee.set_expression('%s %% %d'%( \
+            args.step_column, args.step_interval))
+        ptip = ee
+        expr = expr + ' && in_step' if expr else 'in_step'
+
+    if (args.x_coordinate_column):
+        try:
+            rm = teca_table_region_mask.New()
+            rm.set_input_connection(ptip.get_output_port())
+            rm.set_x_coordinate_column(args.x_coordinate_column)
+            rm.set_y_coordinate_column(args.y_coordinate_column)
+            rm.set_region_x_coordinates(args.region_x_coords)
+            rm.set_region_y_coordinates(args.region_y_coords)
+            rm.set_region_sizes(args.region_sizes)
+            rm.set_result_column('in_region')
+            ptip = rm
+            expr = expr + ' && in_region' if expr else 'in_region'
+        except Exception as e:
+            sys.stderr.write('ERROR: %s\nFor spatial filtering you must specify' \
+                ' all of:\n  x_coordinate_column\n  y_coordinate_column\n' \
+                '  region_x_coords\n  region_y_coords\n  region_size\n'%(str(e)))
+            sys.exit(-1)
+
+    if not expr:
+        sys.stderr.write('ERROR: must specify one of:\n' \
+            '  --time_column\n  --step_column\n  --x_coordinate_column\n')
+        sys.exit(-1)
+
+    rr = teca_table_remove_rows.New()
+    rr.set_input_connection(ptip.get_output_port())
+    rr.set_remove_dependent_variables(1)
+    rr.set_mask_expression('!(%s)'%(expr))
+
+    tw = teca_table_writer.New()
+    tw.set_input_connection(rr.get_output_port())
+    tw.set_file_name(args.out_file)
+
+    # run it
+    tw.update()
+
+
+if __name__ == '__main__':
+    main()
