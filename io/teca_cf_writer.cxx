@@ -22,12 +22,11 @@
 class teca_cf_writer_internals
 {
 public:
+
     // creates and writes a NetCDF dataset from the passed in data.
     // data is organized into a vector of array collections, one per
     // time step.
-    static
-    int write(const std::string &file_name,
-        int mode, int use_unlimited_dim, int compression_level, 
+    int create(const std::string &file_name, int mode, int use_unlimited_dim,
         const std::vector<long> &request_ids, const const_p_teca_variant_array &x,
         const const_p_teca_variant_array &y, const const_p_teca_variant_array &z,
         const const_p_teca_variant_array &t, const std::string &x_variable,
@@ -36,26 +35,48 @@ public:
         const std::vector<const_p_teca_array_collection> &point_arrays,
         const std::vector<const_p_teca_array_collection> &info_arrays);
 
+
+    // creates and writes a NetCDF dataset from the passed in data.
+    // data is organized into a vector of array collections, one per
+    // time step.
+    int write(const std::string &file_name, int mode, int use_unlimited_dim,
+        int compression_level,
+        const std::vector<long> &request_ids, const const_p_teca_variant_array &x,
+        const const_p_teca_variant_array &y, const const_p_teca_variant_array &z,
+        const const_p_teca_variant_array &t, const std::string &x_variable,
+        const std::string &y_variable, const std::string &z_variable,
+        const std::string &t_variable, const teca_metadata &array_attributes,
+        const std::vector<const_p_teca_array_collection> &point_arrays,
+        const std::vector<const_p_teca_array_collection> &info_arrays);
+
+    struct per_file_data_t
+    {
+        int n_dims;
+        size_t dims[4];
+        std::map<std::string, int> var_ids;
+        teca_netcdf_util::netcdf_handle handle;
+    };
+
+    using file_table_t = std::unordered_map<std::string, per_file_data_t>;
+    file_table_t file_table;
+    std::mutex file_table_mutex;
+
 };
 
+
 // --------------------------------------------------------------------------
-int teca_cf_writer_internals::write(const std::string &file_name, int mode,
-    int use_unlimited_dim, int compression_level,
-    const std::vector<long> &request_ids,
+int teca_cf_writer_internals::create(const std::string &file_name, int mode,
+    int use_unlimited_dim, int compression_level, const std::vector<long> &request_ids,
     const const_p_teca_variant_array &x, const const_p_teca_variant_array &y,
     const const_p_teca_variant_array &z, const const_p_teca_variant_array &t,
     const std::string &x_variable, const std::string &y_variable,
     const std::string &z_variable, const std::string &t_variable,
-    const teca_metadata &array_attributes,
-    const std::vector<const_p_teca_array_collection> &point_arrays,
-    const std::vector<const_p_teca_array_collection> &info_arrays)
+    const teca_metadata &array_attributes, per_file_data_t &file_data)
 {
-    (void) request_ids;
-
     int ierr = NC_NOERR;
 
     // create the output file
-    teca_netcdf_util::netcdf_handle fh;
+    teca_netcdf_util::netcdf_handle &fh = file_data.handle;
     if (fh.create(file_name.c_str(), mode))
     {
         TECA_ERROR("failed to create file \"" << file_name << "\"")
@@ -77,7 +98,6 @@ int teca_cf_writer_internals::write(const std::string &file_name, int mode,
     std::string coord_array_names[4];
     size_t dims[4] = {0, 0, 0, 0};
     size_t unlimited_dim_actual_size = 0;
-
 
     // the cf reader always creates 4D data, but some other tools choke
     // on it, notably ParView. All dimensions of 1 are safe to skip, unless
@@ -130,7 +150,7 @@ int teca_cf_writer_internals::write(const std::string &file_name, int mode,
 
     // dictionary of names to ncids
     int dim_ids[4] = {-1};
-    std::map<std::string, int> var_ids;
+    std::map<std::string, int> &var_ids = file_data.var_ids;
 
     for (int i = 0; i < n_dims; ++i)
     {
@@ -160,7 +180,7 @@ int teca_cf_writer_internals::write(const std::string &file_name, int mode,
             )
 
         // save the var id
-        var_ids[coord_array_names[i]] = var_id;
+        file_data.var_ids[coord_array_names[i]] = var_id;
     }
 
     // define variables for each point array
@@ -356,6 +376,38 @@ int teca_cf_writer_internals::write(const std::string &file_name, int mode,
             }
             )
     }
+
+    return 0;
+}
+
+// --------------------------------------------------------------------------
+int teca_cf_writer_internals::write(const std::string &file_name, int mode,
+    int use_unlimited_dim, const std::vector<long> &request_ids,
+    const const_p_teca_variant_array &x, const const_p_teca_variant_array &y,
+    const const_p_teca_variant_array &z, const const_p_teca_variant_array &t,
+    const std::string &x_variable, const std::string &y_variable,
+    const std::string &z_variable, const std::string &t_variable,
+    const teca_metadata &array_attributes,
+    const std::vector<const_p_teca_array_collection> &point_arrays,
+    const std::vector<const_p_teca_array_collection> &info_arrays)
+{
+    (void) request_ids;
+
+
+    // check if the file has been created
+    int create = 0;
+    {
+    std::lock_guard<std::mutex> lock;
+    auto ret = this->file_table.insert(file_name);
+    if (ret->second)
+        create = 1;
+    }
+
+
+    int ierr = NC_NOERR;
+
+    // create the output file
+    teca_netcdf_util::netcdf_handle fh;
 
     // write point arrays
     if (point_arrays.size())
