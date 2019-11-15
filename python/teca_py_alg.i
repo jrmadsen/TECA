@@ -27,9 +27,13 @@
 #include "teca_mask.h"
 #include "teca_mesh_padding.h"
 <<<<<<< HEAD
+<<<<<<< HEAD
 #include "teca_mesh_layering.h"
 =======
 >>>>>>> d4cb04e... add mesh_padding algorithm
+=======
+#include "teca_mesh_layering.h"
+>>>>>>> 9faa4dc... add mesh_layering
 #include "teca_normalize_coordinates.h"
 #include "teca_programmable_algorithm.h"
 #include "teca_programmable_reduce.h"
@@ -116,6 +120,9 @@
 
 /***************************************************************************
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 9faa4dc... add mesh_layering
  mesh_layering
  ***************************************************************************/
 %ignore teca_mesh_layering::shared_from_this;
@@ -124,8 +131,11 @@
 %include "teca_mesh_layering.h"
 
 /***************************************************************************
+<<<<<<< HEAD
 =======
 >>>>>>> d4cb04e... add mesh_padding algorithm
+=======
+>>>>>>> 9faa4dc... add mesh_layering
  table_reduce
  ***************************************************************************/
 %ignore teca_table_reduce::shared_from_this;
