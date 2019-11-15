@@ -164,122 +164,118 @@ const_p_teca_dataset teca_mesh_padding::execute(
     size_t px_low = this->get_px_low();
     size_t px_high = this->get_px_high();
 
-    if (py_low || py_high || px_low || px_high)
+    // get the coordinate axes
+    std::string y_name;
+    std::string x_name;
+    in_mesh->get_y_coordinate_variable(y_name);
+    in_mesh->get_x_coordinate_variable(x_name);
+
+    const_p_teca_variant_array y_crds = in_mesh->get_y_coordinates();
+    const_p_teca_variant_array x_crds = in_mesh->get_x_coordinates();
+    const_p_teca_variant_array z_crds = in_mesh->get_z_coordinates();
+
+    size_t n_y = y_crds->size();
+    size_t n_x = x_crds->size();
+    size_t n_z = z_crds->size();
+
+    size_t ny_new = py_low + n_y + py_high;
+    size_t nx_new = px_low + n_x + px_high;
+
+    size_t nxy_new = nx_new * ny_new;
+
+
+    unsigned long req_whole_extent[6] = {0};
+    unsigned long req_extent[6] = {0};
+
+    req_whole_extent[1] = nx_new - 1;
+    req_whole_extent[3] = ny_new - 1;
+    req_whole_extent[5] = n_z;
+    req_extent[1] = nx_new - 1;
+    req_extent[3] = ny_new - 1;
+    req_extent[5] = n_z;
+
+    out_mesh->set_whole_extent(req_whole_extent);
+    out_mesh->set_extent(req_extent);
+
+    out_metadata.set("whole_extent", req_whole_extent, 6);
+    out_metadata.set("extent", req_extent, 6);
+
+
+    if (px_low || px_high)
     {
-        // get the coordinate axes
-        std::string y_name;
-        std::string x_name;
-        in_mesh->get_y_coordinate_variable(y_name);
-        in_mesh->get_x_coordinate_variable(x_name);
+        p_teca_variant_array x_crds_new = x_crds->new_instance(px_low + n_x + px_high);
 
-        const_p_teca_variant_array y_crds = in_mesh->get_y_coordinates();
-        const_p_teca_variant_array x_crds = in_mesh->get_x_coordinates();
-        const_p_teca_variant_array z_crds = in_mesh->get_z_coordinates();
+        TEMPLATE_DISPATCH_FP(
+            teca_variant_array_impl,
+            x_crds_new.get(),
 
-        size_t n_y = y_crds->size();
-        size_t n_x = x_crds->size();
-        size_t n_z = z_crds->size();
+            const NT* p_x_crds = static_cast<const TT*>(x_crds.get())->get();
+            NT* p_x_crds_new = static_cast<TT*>(x_crds_new.get())->get();
 
-        size_t ny_new = py_low + n_y + py_high;
-        size_t nx_new = px_low + n_x + px_high;
+            teca_coordinate_util::expand_dimension(p_x_crds_new, p_x_crds, n_x,
+                            px_low, px_high);
 
-        size_t nxy_new = nx_new * ny_new;
+            out_mesh->set_x_coordinates(const_cast<const std::string&>(x_name), x_crds_new);
+        )
+    }
 
+    if (py_low || py_high)
+    {
+        p_teca_variant_array y_crds_new = y_crds->new_instance(py_low + n_y + py_high);
 
-        unsigned long req_whole_extent[6] = {0};
-        unsigned long req_extent[6] = {0};
+        TEMPLATE_DISPATCH_FP(
+            teca_variant_array_impl,
+            y_crds_new.get(),
 
-        req_whole_extent[1] = nx_new - 1;
-        req_whole_extent[3] = ny_new - 1;
-        req_whole_extent[5] = n_z;
-        req_extent[1] = nx_new - 1;
-        req_extent[3] = ny_new - 1;
-        req_extent[5] = n_z;
+            const NT* p_y_crds = static_cast<const TT*>(y_crds.get())->get();
+            NT* p_y_crds_new = static_cast<TT*>(y_crds_new.get())->get();
 
-        out_mesh->set_whole_extent(req_whole_extent);
-        out_mesh->set_extent(req_extent);
+            teca_coordinate_util::expand_dimension(p_y_crds_new, p_y_crds, n_y,
+                            py_low, py_high);
 
-        out_metadata.set("whole_extent", req_whole_extent, 6);
-        out_metadata.set("extent", req_extent, 6);
+            out_mesh->set_y_coordinates(const_cast<const std::string&>(y_name), y_crds_new);
+        )
+    }
 
 
-        if (px_low || px_high)
-        {
-            p_teca_variant_array x_crds_new = x_crds->new_instance(px_low + n_x + px_high);
-
-            TEMPLATE_DISPATCH_FP(
-                teca_variant_array_impl,
-                x_crds_new.get(),
-
-                const NT* p_x_crds = static_cast<const TT*>(x_crds.get())->get();
-                NT* p_x_crds_new = static_cast<TT*>(x_crds_new.get())->get();
-
-                teca_coordinate_util::expand_dimension(p_x_crds_new, p_x_crds, n_x,
-                                px_low, px_high);
-
-                out_mesh->set_x_coordinates(const_cast<const std::string&>(x_name), x_crds_new);
-            )
-        }
-
-        if (py_low || py_high)
-        {
-            p_teca_variant_array y_crds_new = y_crds->new_instance(py_low + n_y + py_high);
-
-            TEMPLATE_DISPATCH_FP(
-                teca_variant_array_impl,
-                y_crds_new.get(),
-
-                const NT* p_y_crds = static_cast<const TT*>(y_crds.get())->get();
-                NT* p_y_crds_new = static_cast<TT*>(y_crds_new.get())->get();
-
-                teca_coordinate_util::expand_dimension(p_y_crds_new, p_y_crds, n_y,
-                                py_low, py_high);
-
-                out_mesh->set_y_coordinates(const_cast<const std::string&>(y_name), y_crds_new);
-            )
-        }
-
+    size_t n_arrays = in_mesh->get_point_arrays()->size();
+    for (size_t i = 0; i < n_arrays; ++i)
+    {
+        const_p_teca_variant_array field_array = in_mesh->get_point_arrays()->get(i);
         
-        size_t n_arrays = in_mesh->get_point_arrays()->size();
-        for (size_t i = 0; i < n_arrays; ++i)
+        const std::string field_var = in_mesh->get_point_arrays()->get_name(i);
+        if (!field_array)
         {
-            const_p_teca_variant_array field_array = in_mesh->get_point_arrays()->get(i);
-            
-            const std::string field_var = in_mesh->get_point_arrays()->get_name(i);
-            if (!field_array)
+            if (!field_var.empty())
             {
-                if (!field_var.empty())
-                {
-                    TECA_ERROR("Field array \"" << field_var
-                        << "\" not present.")
-                }
-                else
-                {
-                    TECA_ERROR("Field array at \"" << i
-                        << "\" not present.")
-                }
-                return nullptr;
+                TECA_ERROR("Field array \"" << field_var
+                    << "\" not present.")
             }
-
-
-            p_teca_variant_array padded_array = field_array->new_instance(nxy_new);
-
-            TEMPLATE_DISPATCH_FP(
-                teca_variant_array_impl,
-                padded_array.get(),
-
-                const NT* p_field_array = static_cast<const TT*>(field_array.get())->get();
-                NT* p_padded_array = static_cast<TT*>(padded_array.get())->get();
-
-                memset(p_padded_array, 0, ny_new*nx_new*sizeof(NT));
-
-                ::apply_padding(p_padded_array, p_field_array,
-                                n_y, n_x, py_low, px_low, nx_new);
-
-                out_mesh->get_point_arrays()->set(field_var, padded_array);
-            )
+            else
+            {
+                TECA_ERROR("Field array at \"" << i
+                    << "\" not present.")
+            }
+            return nullptr;
         }
-    
+
+
+        p_teca_variant_array padded_array = field_array->new_instance(nxy_new);
+
+        TEMPLATE_DISPATCH_FP(
+            teca_variant_array_impl,
+            padded_array.get(),
+
+            const NT* p_field_array = static_cast<const TT*>(field_array.get())->get();
+            NT* p_padded_array = static_cast<TT*>(padded_array.get())->get();
+
+            memset(p_padded_array, 0, ny_new*nx_new*sizeof(NT));
+
+            ::apply_padding(p_padded_array, p_field_array,
+                            n_y, n_x, py_low, px_low, nx_new);
+
+            out_mesh->get_point_arrays()->set(field_var, padded_array);
+        )
     }
 
     return out_mesh;

@@ -1,29 +1,9 @@
+import sys
 import teca_py
 import numpy as np
-from mpi4py import MPI
 import torch
 import torch.nn.functional as F
-
-def teca_get_data_root():
-    """
-    Return TECA_DATA_ROOT location
-    """
-    return @TECA_DATA_ROOT@
-
-def teca_load_state_dict(state_dict_file, model_class, *args):
-    """
-    Load only the pytorch state_dict parameters file only
-    once and broadcast it to all ranks
-    """ 
-    if rank == 0:
-        model = model_class(*args)
-        model.load_state_dict(state_dict_file)
-    else:
-        model = None
-    model = comm.bcast(model, root=0)
-
-    return model
-
+import time
 
 
 class teca_model_segmentation(teca_py.teca_python_algorithm):
@@ -34,9 +14,11 @@ class teca_model_segmentation(teca_py.teca_python_algorithm):
     def __init__(self):
         self.variable_name = "IVT"
         self.pred_name = self.variable_name + "_PRED"
+        self.var_array = None
         self.transform_fn = None
         self.transport_fn_args = None
         self.model = None
+        self.model_path = None
         self.device = self.set_torch_device()
 
     def __str__(self):
@@ -49,11 +31,28 @@ class teca_model_segmentation(teca_py.teca_python_algorithm):
 
         return ms_str
 
+    def load_state_dict(self, state_dict_file):
+        """
+        Load only the pytorch state_dict parameters file only
+        once and broadcast it to all ranks
+        """
+        comm = self.get_communicator()
+        rank = comm.Get_rank()
+
+        sd = None
+        if rank == 0:
+            sd = torch.load(state_dict_file, map_location=lambda storage, loc: storage)
+        sd = comm.bcast(sd, root=0)
+        #sd = torch.load(state_dict_file, map_location=lambda storage, loc: storage)
+        
+        return sd
+
     def set_variable_name(self, name):
         """
         set the variable name that will be inputed to the model
         """
-        self.variable_name = name
+        self.variable_name = str(name)
+        self.set_pred_name(self.variable_name + "_pred")
 
     def set_pred_name(self, name):
         """
@@ -61,34 +60,34 @@ class teca_model_segmentation(teca_py.teca_python_algorithm):
         """
         self.pred_name = name
 
-    def set_transform_fn(self, fn, *args):
+    def __set_transform_fn(self, fn, *args):
         """
         if the data need to be transformed in a way then a function
         could be provided to be applied on the requested data before
         running it to the model.
         """
         if not hasattr(fn, '__call__'):
-            raise TypeError("ERROR: The provided data transform function "
-                "is not a function")
+            if rank == 0:
+                raise TypeError("ERROR: The provided data transform function "
+                    "is not a function")
 
         if not args:
-            raise ValueError("ERROR: The provided data transform function "
-                "must at least have 1 argument -- the data array object to "
-                "apply the transformation on.")
+            if rank == 0:
+                raise ValueError("ERROR: The provided data transform function "
+                    "must at least have 1 argument -- the data array object to "
+                    "apply the transformation on.")
 
         self.transform_fn = fn
         self.transport_fn_args = args
-        return True
 
     def set_torch_device(self, device="cpu"):
         """
         Set device to either 'cuda' or 'cpu'
         """
         if device == "cuda" and not torch.cuda.is_available():
-            # TODO if this is part of a parallel pipeline then
-            # only rank 0 should report an error.
-            raise Exception("ERROR: Couldn\'t set device to cuda, cuda is "
-                "not available")
+            if rank == 0:
+                raise Exception("ERROR: Couldn\'t set device to cuda, cuda is "
+                    "not available")
 
         return torch.device(device)
 
@@ -109,15 +108,15 @@ class teca_model_segmentation(teca_py.teca_python_algorithm):
 
             rep = teca_py.teca_metadata(rep_temp)
 
-            if not rep['variables']:
-                rep['variables'] = []
+            if not rep.has('variables'):
+                print("variables key doesn't exist")
+                rep['variables'] = teca_py.teca_variant_array.New(np.array([]))
 
             if self.pred_name:
-                rep['variables'].append(self.pred_name)
+                rep.append("variables", self.pred_name)
 
             return rep
         return report
-
 
     def get_request_callback(self):
         """
@@ -126,9 +125,8 @@ class teca_model_segmentation(teca_py.teca_python_algorithm):
         """
         def request(port, md_in, req_in):
             if not self.variable_name:
-                # TODO if this is part of a parallel pipeline then
-                # only rank 0 should report an error.
-                raise ValueError("ERROR: No variable to request specifed")
+                if rank == 0:
+                    raise ValueError("ERROR: No variable to request specifed")
 
             req = teca_py.teca_metadata(req_in)
 
@@ -142,7 +140,7 @@ class teca_model_segmentation(teca_py.teca_python_algorithm):
             return [req]
         return request
 
-    def get_predictions_execute(self):
+    def get_execute_callback(self):
         """
         return a teca_algorithm::execute function
         """
@@ -155,34 +153,35 @@ class teca_model_segmentation(teca_py.teca_python_algorithm):
             in_mesh = teca_py.as_teca_cartesian_mesh(data_in[0])
 
             if in_mesh is None:
-                # TODO if this is part of a parallel pipeline then
-                # only rank 0 should report an error.
-                raise ValueError("ERROR: empty input, or not a mesh")
+                if rank == 0:
+                    raise ValueError("ERROR: empty input, or not a mesh")
 
             if self.model is None:
-                # TODO if this is part of a parallel pipeline then
-                # only rank 0 should report an error.
-                raise ValueError("ERROR: pretrained model has not been specified")
+                if rank == 0:
+                    raise ValueError("ERROR: pretrained model has not been specified")
 
-            lat = np.array(in_mesh.get_y_coordinates())
-            lon = np.array(in_mesh.get_x_coordinates())
+            #md = in_mesh.get_metadata()
 
-            arrays = in_mesh.get_point_arrays()
+            #arrays = in_mesh.get_point_arrays()
 
-            var_array = arrays[self.variable_name]
+            #var_array = arrays[self.variable_name]
+            
+            #if self.transform_fn:
+            #    var_array = self.transform_fn(var_array, *self.transport_fn_args)
 
-            if self.transform_fn:
-                var_array = self.transform_fn(var_array, *self.transport_fn_args)
+            start_time = time.time()
+            self.var_array = torch.from_numpy(self.var_array).to(self.device)
+            end_time = time.time()
 
-            var_array = torch.from_numpy(var_array).to(self.device)
-
+            #print(self.var_array)
+            start_time = time.time()
             with torch.no_grad():
-                pred = F.sigmoid(self.model(var_array))
+                pred = torch.sigmoid(self.model(self.var_array))
+            end_time = time.time()
 
             if pred is None:
-                # TODO if this is part of a parallel pipeline then
-                # only rank 0 should report an error.
-                raise Exception("ERROR: Model failed to get predictions")
+                if rank == 0:
+                    raise Exception("ERROR: Model failed to get predictions")
 
             out_mesh = teca_py.teca_cartesian_mesh.New()
             out_mesh.shallow_copy(in_mesh)

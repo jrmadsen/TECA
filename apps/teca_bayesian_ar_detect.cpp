@@ -253,7 +253,7 @@ int main(int argc, char **argv)
         teca_metadata atrs;
         if (md.get("attributes", atrs))
         {
-            TECA_ERROR("metadata mising attributes")
+            TECA_ERROR("metadata missing attributes")
             return -1;
         }
 
@@ -286,7 +286,7 @@ int main(int argc, char **argv)
             if (teca_coordinate_util::time_step_of(time, true, calendar,
                  units, start_date, first_step))
             {
-                TECA_ERROR("Failed to lcoate time step for start date \""
+                TECA_ERROR("Failed to locate time step for start date \""
                     <<  start_date << "\"")
                 return -1;
             }
@@ -301,7 +301,7 @@ int main(int argc, char **argv)
             if (teca_coordinate_util::time_step_of(time, false, calendar,
                  units, end_date, last_step))
             {
-                TECA_ERROR("Failed to lcoate time step for end date \""
+                TECA_ERROR("Failed to locate time step for end date \""
                     <<  end_date << "\"")
                 return -1;
             }

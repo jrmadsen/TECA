@@ -223,6 +223,15 @@ teca_add_test(py_test_bayesian_ar_detect_mpi_threads
     FEATURES ${TECA_HAS_NETCDF} ${TECA_HAS_MPI}
     REQ_TECA_DATA)
 
+teca_add_test(py_test_deeplabv3p_ar_detect
+    COMMAND  ${PYTHON_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test_deeplabv3p_ar_detect.py
+    "${TECA_DATA_ROOT}/pre_trained_deeplab_resnet_IVT_artmip_probabilistic_adam_epoch_001_loss_perceptual_loss_160987.8365_time_corr_split_state_dict_final.pt"
+    "${TECA_DATA_ROOT}/resnet101-5d3b4d8f-state_dict.pth"
+    "${TECA_DATA_ROOT}/MERRA_data_and_all_labels.*\\.nc$"
+    "${TECA_DATA_ROOT}/test_deeplabv3p_ar_detect.bin" IVT 0 0
+    FEATURES ${TECA_HAS_NETCDF}
+    REQ_TECA_DATA)
+
 teca_add_test(py_test_binary_stream
     COMMAND ${MPIEXEC} -n ${TECA_TEST_CORES} ${PYTHON_EXECUTABLE}
     ${CMAKE_CURRENT_SOURCE_DIR}/test_binary_stream.py

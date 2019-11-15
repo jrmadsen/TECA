@@ -176,11 +176,11 @@ const_p_teca_dataset teca_mesh_layering::execute(
         unsigned long req_whole_extent[6] = {0};
         unsigned long req_extent[6] = {0};
 
-        req_whole_extent[1] = n_x;
-        req_whole_extent[3] = n_y;
+        req_whole_extent[1] = n_x - 1;
+        req_whole_extent[3] = n_y - 1;
         req_whole_extent[5] = n_layers - 1;
-        req_extent[1] = n_x;
-        req_extent[3] = n_y;
+        req_extent[1] = n_x - 1;
+        req_extent[3] = n_y - 1;
         req_extent[5] = n_layers - 1;
 
         out_mesh->set_whole_extent(req_whole_extent);
