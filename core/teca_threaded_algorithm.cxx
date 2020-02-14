@@ -218,14 +218,15 @@ const_p_teca_dataset teca_threaded_algorithm::request_data(
                n_tasks_remaining = this->internals->thread_pool->wait_some(
                     this->stream_size, this->poll_interval, input_data);
 
-                // when stremaing recycle last round's output, this is key for
-                // reductions
+                // when stremaing recycle last round's output, this is
+                // neccessary for reductions
                 if (out_data)
                     input_data.push_back(out_data);
 
                 // execute override
                 TECA_PROFILE_PIPELINE(128, alg, "execute", port,
-                    out_data = alg->execute(port, input_data, request, n_tasks_remaining);
+                    out_data = alg->execute(port, input_data,
+                    request, n_tasks_remaining);
                 )
             }
             while (n_tasks_remaining);
