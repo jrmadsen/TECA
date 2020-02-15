@@ -312,6 +312,10 @@ int teca_cf_writer::internals_t::time_series_layout::define(
     {
         // define dimension
         int dim_id = -1;
+#if !defined(HDF5_THREAD_SAFE)
+        {
+        std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
         if ((ierr = nc_def_dim(this->handle.get(), coord_array_names[i].c_str(),
             this->dims[i], &dim_id)) != NC_NOERR)
         {
@@ -320,6 +324,9 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                 << nc_strerror(ierr))
             return -1;
         }
+#if !defined(HDF5_THREAD_SAFE)
+        }
+#endif
 
         // save the dim id
         dim_ids[i] = dim_id;
@@ -329,6 +336,10 @@ int teca_cf_writer::internals_t::time_series_layout::define(
         TEMPLATE_DISPATCH(const teca_variant_array_impl,
             coord_arrays[i].get(),
             int type = teca_netcdf_util::netcdf_tt<NT>::type_code;
+#if !defined(HDF5_THREAD_SAFE)
+            {
+            std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
             if ((ierr = nc_def_var(this->handle.get(), coord_array_names[i].c_str(),
                 type, 1, &dim_id, &var_id)) != NC_NOERR)
             {
@@ -337,6 +348,9 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                     << nc_strerror(ierr))
                 return -1;
             }
+#if !defined(HDF5_THREAD_SAFE)
+            }
+#endif
             )
 
         // save the var id
@@ -357,6 +371,10 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                 // define variable
                 int var_id = -1;
                 int type = teca_netcdf_util::netcdf_tt<NT>::type_code;
+#if !defined(HDF5_THREAD_SAFE)
+                {
+                std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
                 if ((ierr = nc_def_var(this->handle.get(), name.c_str(), type,
                     this->n_dims, dim_ids, &var_id)) != NC_NOERR)
                 {
@@ -364,6 +382,9 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                         << name << "\". " << nc_strerror(ierr))
                     return -1;
                 }
+#if !defined(HDF5_THREAD_SAFE)
+                }
+#endif
                 // save the var id
                 var_ids[name] = var_id;
                 )
@@ -394,6 +415,10 @@ int teca_cf_writer::internals_t::time_series_layout::define(
             // define dimension
             std::string dim_name = "dim_" + name;
             int dim_id = -1;
+#if !defined(HDF5_THREAD_SAFE)
+            {
+            std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
             if ((ierr = nc_def_dim(this->handle.get(), dim_name.c_str(),
                 array->size(), &dim_id)) != NC_NOERR)
             {
@@ -401,6 +426,9 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                     <<  i << " \"" << name << "\" " << nc_strerror(ierr))
                 return -1;
             }
+#if !defined(HDF5_THREAD_SAFE)
+            }
+#endif
 
             // set up dim ids for definition
             int info_dim_ids[2];
@@ -420,6 +448,10 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                 // define variable
                 int var_id = -1;
                 int type = teca_netcdf_util::netcdf_tt<NT>::type_code;
+#if !defined(HDF5_THREAD_SAFE)
+                {
+                std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
                 if ((ierr = nc_def_var(this->handle.get(), name.c_str(), type,
                     n_info_dims, info_dim_ids, &var_id)) != NC_NOERR)
                 {
@@ -427,6 +459,9 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                         << name << "\". " << nc_strerror(ierr))
                     return -1;
                 }
+#if !defined(HDF5_THREAD_SAFE)
+                }
+#endif
                 // save the var id
                 var_ids[name] = var_id;
                 )
@@ -478,11 +513,18 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                 if (att_values->size() > 1)
                     continue;
                 const std::string att_val = static_cast<const TT*>(att_values.get())->get(0);
+#if !defined(HDF5_THREAD_SAFE)
+                {
+                std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
                 if ((ierr = nc_put_att_text(this->handle.get(), var_id, att_name.c_str(), att_val.size()+1,
                     att_val.c_str())) != NC_NOERR)
                 {
                     TECA_ERROR("failed to put attribute \"" << att_name << "\"")
                 }
+#if !defined(HDF5_THREAD_SAFE)
+                }
+#endif
                 continue;
                 )
 
@@ -494,16 +536,27 @@ int teca_cf_writer::internals_t::time_series_layout::define(
                 const NT *pvals = static_cast<TT*>(att_values.get())->get();
                 unsigned long n_vals = att_values->size();
 
+#if !defined(HDF5_THREAD_SAFE)
+                {
+                std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
                 if ((ierr = nc_put_att(this->handle.get(), var_id, att_name.c_str(), type,
                     n_vals, pvals)) != NC_NOERR)
                 {
                     TECA_ERROR("failed to put attribute \"" << att_name << "\" "
                         << nc_strerror(ierr))
                 }
+#if !defined(HDF5_THREAD_SAFE)
+                }
+#endif
                 )
         }
     }
 
+#if !defined(HDF5_THREAD_SAFE)
+    {
+    std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
     // prevent NetCDF from writing 2x.
     int old_fill = 0;
     if ((ierr = nc_set_fill(this->handle.get(), NC_NOFILL, &old_fill)) != NC_NOERR)
@@ -511,9 +564,11 @@ int teca_cf_writer::internals_t::time_series_layout::define(
         TECA_ERROR("Failed to disable fill mode on file " << this->file_id)
     }
 
-
     // end metadata definition phase
     ierr = nc_enddef(this->handle.get());
+#if !defined(HDF5_THREAD_SAFE)
+    }
+#endif
 
     // write the coordinate arrays
     for (int i = 0; i < this->n_dims; ++i)
@@ -538,12 +593,19 @@ int teca_cf_writer::internals_t::time_series_layout::define(
         TEMPLATE_DISPATCH(const teca_variant_array_impl,
             coord_arrays[i].get(),
             const NT *pa = static_cast<TT*>(coord_arrays[i].get())->get();
+#if !defined(HDF5_THREAD_SAFE)
+            {
+            std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
             if ((ierr = nc_put_vara(this->handle.get(), var_id, &start, &count, pa)) != NC_NOERR)
             {
                 TECA_ERROR("failed to write \"" << coord_array_names[i] << "\" axis. "
                     << nc_strerror(ierr))
                 return -1;
             }
+#if !defined(HDF5_THREAD_SAFE)
+            }
+#endif
             )
     }
 
@@ -604,12 +666,19 @@ int teca_cf_writer::internals_t::time_series_layout::write(
                 TEMPLATE_DISPATCH(const teca_variant_array_impl,
                     array.get(),
                     const NT *pa = static_cast<TT*>(array.get())->get();
+#if !defined(HDF5_THREAD_SAFE)
+                    {
+                    std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
                     if ((ierr = nc_put_vara(this->handle.get(), var_id, starts, counts, pa)) != NC_NOERR)
                     {
                         TECA_ERROR("failed to write array \"" << array_name << "\". "
                             << nc_strerror(ierr))
                         return -1;
                     }
+#if !defined(HDF5_THREAD_SAFE)
+                    }
+#endif
                     )
             }
         }
@@ -645,12 +714,19 @@ int teca_cf_writer::internals_t::time_series_layout::write(
                 TEMPLATE_DISPATCH(const teca_variant_array_impl,
                     array.get(),
                     const NT *pa = static_cast<TT*>(array.get())->get();
+#if !defined(HDF5_THREAD_SAFE)
+                    {
+                    std::lock_guard<std::mutex> lock(teca_netcdf_util::get_netcdf_mutex());
+#endif
                     if ((ierr = nc_put_vara(this->handle.get(), var_id, starts, counts, pa)) != NC_NOERR)
                     {
                         TECA_ERROR("failed to write array \"" << array_name << "\". "
                             << nc_strerror(ierr))
                         return -1;
                     }
+#if !defined(HDF5_THREAD_SAFE)
+                    }
+#endif
                     )
             }
         }
